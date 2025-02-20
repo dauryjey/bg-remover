@@ -1,50 +1,79 @@
 "use client";
 
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useState } from "react";
 import { CiImageOn } from "react-icons/ci";
+import UploadImageInput from "./components/UploadImageInput";
+import { Triangle } from "react-loader-spinner";
 
 export default function Home() {
-  const [selectedFile, setSelectedFile] = useState<FileList | null>();
+  const [selectedFile, setSelectedFile] = useState<FileList | undefined>();
+  const [processingImage, setProcessingImage] = useState(false);
 
   const handleInputFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const target = e.target;
 
     const file = target.files;
 
-    setSelectedFile(file);
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const onSubmitFile = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setProcessingImage(true);
+
+    const formData = new FormData(e.currentTarget);
+
+    try {
+      const response = await fetch("/api/background", {
+        method: "POST",
+        body: formData,
+      });
+
+      const imageResult = await response.blob();
+      const imageUrl = URL.createObjectURL(imageResult);
+      const newWindow = window.open();
+      newWindow!.document.write(`<img src="${imageUrl}" />`);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setProcessingImage(false);
+    }
   };
 
   return (
     <main className="flex flex-col justify-center items-center h-screen gap-4">
-      <div className="flex items-center space-x-4 border-2 border-gray-200 rounded-full">
-        <label
-          htmlFor="image"
-          className="px-4 py-2 bg-sky-500 hover:bg-sky-600 transition-all  cursor-pointer rounded-l-full text-white"
-        >
-          Upload image
-        </label>
-        <input
-          id="image"
-          className="hidden"
-          type="file"
-          name="image"
-          accept="image/png, image/jpeg"
-          onChange={handleInputFileChange}
+      {processingImage ? (
+        <Triangle
+          visible={true}
+          height="40"
+          width="40"
+          color="#cacaca"
+          ariaLabel="triangle-loading"
+          wrapperStyle={{}}
+          wrapperClass=""
         />
-        <div>
-          <span className="pr-6">
-            {selectedFile ? selectedFile[0].name : "No file choosen."}
-          </span>
-        </div>
-      </div>
-      <div>
-        <button className="flex items-center  gap-2 font-semibold bg-sky-400 hover:bg-sky-500 transition-all text-white px-4 py-2 rounded-full">
-          <span>
-            <CiImageOn />
-          </span>
-          Remove background
-        </button>
-      </div>
+      ) : (
+        <form onSubmit={onSubmitFile}>
+          <UploadImageInput
+            selectedFile={selectedFile}
+            onChange={handleInputFileChange}
+            loading={processingImage}
+          />
+          <div className="flex justify-center items-center mt-2">
+            <button
+              className="flex items-center  gap-2 font-semibold bg-sky-400 hover:bg-sky-500 transition-all text-white px-4 py-2 rounded-full"
+              disabled={processingImage}
+            >
+              <span>
+                <CiImageOn />
+              </span>
+              Remove background
+            </button>
+          </div>
+        </form>
+      )}
     </main>
   );
 }
